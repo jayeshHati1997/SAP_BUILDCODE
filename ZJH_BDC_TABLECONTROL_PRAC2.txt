@@ -1,0 +1,221 @@
+REPORT ZJH_TAB_CNTRL_PRAC2
+       NO STANDARD PAGE HEADING LINE-SIZE 255.
+
+*include bdcrecx1.
+
+DATA:   BDCDATA LIKE BDCDATA    OCCURS 0 WITH HEADER LINE.
+DATA TX_TRUX TYPE TRUXS_T_TEXT_DATA.
+DATA: LV_NUM(2) TYPE N,
+      FNAM TYPE STRING.
+
+PARAMETERS: DATASET(128) LOWER CASE.
+
+DATA: BEGIN OF RECORD OCCURS 0,
+* data element: BUKRS
+        BUKRS_001(004),
+* data element: KTOKD
+        KTOKD_002(004),
+* data element: NAME1_GP
+        NAME1_003(035),
+* data element: SORTL
+        SORTL_004(010),
+* data element: ORT01_GP
+        ORT01_005(035),
+* data element: PSTLZ
+        PSTLZ_006(010),
+* data element: LAND1_GP
+        LAND1_007(003),
+* data element: REGIO
+        REGIO_008(003),
+* data element: SPRAS
+        SPRAS_009(002),
+* data element: BANKS
+        BANKS_01_010(003),
+* data element: BANKK
+        BANKL_01_011(015),
+* data element: BANKN
+        BANKN_01_012(018),
+* data element: KOINH_FI
+        KOINH_01_013(060),
+* data element: CIVVE
+        CIVVE_014(001),
+* data element: AKONT
+        AKONT_015(010),
+* data element: FDGRV
+        FDGRV_016(010),
+      END OF RECORD.
+
+DATA: IT_FINAL LIKE TABLE OF RECORD,
+      WA_FINAL LIKE LINE OF RECORD.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR DATASET.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      PROGRAM_NAME  = SYST-CPROG
+      DYNPRO_NUMBER = SYST-DYNNR
+*     FIELD_NAME    = ' '
+    IMPORTING
+      FILE_NAME     = DATASET.
+
+
+START-OF-SELECTION.
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+*     I_FIELD_SEPERATOR    =
+      I_LINE_HEADER        = 'X'
+      I_TAB_RAW_DATA       = TX_TRUX
+      I_FILENAME           = DATASET
+    TABLES
+      I_TAB_CONVERTED_DATA = RECORD[]
+    EXCEPTIONS
+      CONVERSION_FAILED    = 1
+      OTHERS               = 2.
+
+  IT_FINAL[] = RECORD[].
+
+  SORT RECORD[] BY NAME1_003 ORT01_005 PSTLZ_006.
+  DELETE ADJACENT DUPLICATES FROM RECORD[] COMPARING NAME1_003 ORT01_005 PSTLZ_006.
+  SORT IT_FINAL[] BY NAME1_003 ORT01_005 PSTLZ_006.
+
+  LOOP AT RECORD.
+
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0100'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'RF02D-KTOKD'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_FIELD       USING 'RF02D-BUKRS'
+                                  RECORD-BUKRS_001.
+    PERFORM BDC_FIELD       USING 'RF02D-KTOKD'
+                                  RECORD-KTOKD_002.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0110'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNA1-SPRAS'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_FIELD       USING 'KNA1-NAME1'
+                                  RECORD-NAME1_003.
+    PERFORM BDC_FIELD       USING 'KNA1-SORTL'
+                                  RECORD-SORTL_004.
+    PERFORM BDC_FIELD       USING 'KNA1-ORT01'
+                                  RECORD-ORT01_005.
+    PERFORM BDC_FIELD       USING 'KNA1-PSTLZ'
+                                  RECORD-PSTLZ_006.
+    PERFORM BDC_FIELD       USING 'KNA1-LAND1'
+                                  RECORD-LAND1_007.
+    PERFORM BDC_FIELD       USING 'KNA1-REGIO'
+                                  RECORD-REGIO_008.
+    PERFORM BDC_FIELD       USING 'KNA1-SPRAS'
+                                  RECORD-SPRAS_009.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0120'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNA1-LIFNR'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0125'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNA1-NIELS'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0130'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNBK-KOINH(01)'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+
+    CLEAR: LV_NUM.
+    LOOP AT IT_FINAL INTO WA_FINAL WHERE NAME1_003 = RECORD-NAME1_003
+                                     AND ORT01_005 = RECORD-ORT01_005
+                                     AND PSTLZ_006 = RECORD-PSTLZ_006.
+      LV_NUM = LV_NUM + 1.
+      CONCATENATE 'KNBK-BANKS(' LV_NUM ')' INTO FNAM.
+    PERFORM BDC_FIELD       USING FNAM
+                                  WA_FINAL-BANKS_01_010.
+
+      CONCATENATE 'KNBK-BANKL(' LV_NUM ')' INTO FNAM.
+    PERFORM BDC_FIELD       USING FNAM
+                                  WA_FINAL-BANKL_01_011.
+      CONCATENATE 'KNBK-BANKN(' LV_NUM ')' INTO FNAM.
+    PERFORM BDC_FIELD       USING FNAM
+                                  WA_FINAL-BANKN_01_012.
+      CONCATENATE 'KNBK-KOINH(' LV_NUM ')' INTO FNAM.
+    PERFORM BDC_FIELD       USING FNAM
+                                  WA_FINAL-KOINH_01_013.
+    CLEAR: WA_FINAL.
+    ENDLOOP.
+
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0130'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNBK-KOINH(01)'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0340'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNVA-ABLAD(01)'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0370'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNEX-LNDEX(01)'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+    PERFORM BDC_FIELD       USING 'KNA1-CIVVE'
+                                  RECORD-CIVVE_014.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0360'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNVK-NAMEV(01)'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0210'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNB1-FDGRV'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_FIELD       USING 'KNB1-AKONT'
+                                  RECORD-AKONT_015.
+    PERFORM BDC_FIELD       USING 'KNB1-FDGRV'
+                                  RECORD-FDGRV_016.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0215'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNB1-ZTERM'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0220'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNB5-MAHNA'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_DYNPRO      USING 'SAPMF02D' '0230'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'KNB1-VRSNR'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+*perform bdc_transaction using 'XD01'.
+    CALL TRANSACTION 'XD01' USING BDCDATA MODE 'N'.
+    REFRESH: BDCDATA[].
+    CLEAR: RECORD.
+
+  ENDLOOP.
+
+*----------------------------------------------------------------------*
+*        Start new screen                                              *
+*----------------------------------------------------------------------*
+FORM BDC_DYNPRO USING PROGRAM DYNPRO.
+  CLEAR BDCDATA.
+  BDCDATA-PROGRAM  = PROGRAM.
+  BDCDATA-DYNPRO   = DYNPRO.
+  BDCDATA-DYNBEGIN = 'X'.
+  APPEND BDCDATA.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+*        Insert field                                                  *
+*----------------------------------------------------------------------*
+FORM BDC_FIELD USING FNAM FVAL.
+*  IF FVAL <> NODATA.
+  CLEAR BDCDATA.
+  BDCDATA-FNAM = FNAM.
+  BDCDATA-FVAL = FVAL.
+  APPEND BDCDATA.
+*  ENDIF.
+ENDFORM.

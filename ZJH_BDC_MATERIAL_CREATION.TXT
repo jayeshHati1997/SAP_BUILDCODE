@@ -1,0 +1,282 @@
+REPORT ZJH_BDC_MATERIAL_CREATION
+       NO STANDARD PAGE HEADING LINE-SIZE 255.
+
+*include bdcrecx1.
+
+TABLES: SSCRFIELDS.
+
+TYPES: BEGIN OF TY_MATCRE,
+         MAKTX     TYPE MAKT-MAKTX,
+         MEINS     TYPE MARA-MEINS,
+         MATKL     TYPE MARA-MATKL,
+         SPART     TYPE MARA-SPART,
+         BRGEW(13) TYPE P DECIMALS 3,
+         GEWEI     TYPE MARA-GEWEI,
+         NTGEW(13) TYPE P DECIMALS 3,
+         VOLUM(13) TYPE P DECIMALS 3,
+         VOLEH     TYPE MARA-VOLEH,
+         PROFL     TYPE MARA-PROFL,
+         DG_ST     TYPE MARA-DG_PACK_STATUS,
+         DG_PC     TYPE MARA-PACKCODE,
+       END OF TY_MATCRE.
+
+TYPES: BEGIN OF TY_ERROR,
+         LINE_NO TYPE I,
+         MESSAGE TYPE STRING,
+       END OF TY_ERROR.
+
+DATA: IT_MATCRE TYPE TABLE OF TY_MATCRE,
+      WA_MATCRE TYPE TY_MATCRE,
+      IT_MSG TYPE TABLE OF BDCMSGCOLL,
+      WA_MSG LIKE LINE OF IT_MSG,
+      I_ERROR TYPE TABLE OF TY_ERROR,
+      W_ERROR TYPE TY_ERROR.
+
+DATA: BDCDATA LIKE BDCDATA OCCURS 0 WITH HEADER LINE.
+
+DATA: TRUXS TYPE TRUXS_T_TEXT_DATA,
+      LV_MSG TYPE STRING.
+
+SELECTION-SCREEN FUNCTION KEY 1.
+
+SELECTION-SCREEN BEGIN OF  BLOCK B1 WITH FRAME TITLE TEXT-001.
+PARAMETERS: FILENAME TYPE RLGRAP-FILENAME.
+SELECTION-SCREEN END OF BLOCK B1.
+
+INITIALIZATION.
+  SSCRFIELDS-FUNCTXT_01 = 'DOWNLOAD'.
+
+AT SELECTION-SCREEN.
+  CASE SSCRFIELDS-UCOMM.
+    WHEN 'FC01'.
+      PERFORM I_DOWNLOAD.
+  ENDCASE.
+
+AT SELECTION-SCREEN ON VALUE-REQUEST FOR FILENAME.
+  CALL FUNCTION 'F4_FILENAME'
+    EXPORTING
+      PROGRAM_NAME  = SYST-CPROG
+      DYNPRO_NUMBER = SYST-DYNNR
+*     FIELD_NAME    = ' '
+    IMPORTING
+      FILE_NAME     = FILENAME.
+
+START-OF-SELECTION.
+  CALL FUNCTION 'TEXT_CONVERT_XLS_TO_SAP'
+    EXPORTING
+*     I_FIELD_SEPERATOR    =
+      I_LINE_HEADER        = 'X'
+      I_TAB_RAW_DATA       = TRUXS
+      I_FILENAME           = FILENAME
+    TABLES
+      I_TAB_CONVERTED_DATA = IT_MATCRE
+    EXCEPTIONS
+      CONVERSION_FAILED    = 1
+      OTHERS               = 2.
+
+  LOOP AT IT_MATCRE INTO WA_MATCRE.
+    DATA(LV_LINE) = SY-TABIX.
+    PERFORM BDC_DYNPRO      USING 'SAPLMGMM' '0060'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'RMMG1-MTART'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+    PERFORM BDC_FIELD       USING 'RMMG1-MBRSH'
+                                  'C'.
+    PERFORM BDC_FIELD       USING 'RMMG1-MTART'
+                                  'FERT'.
+    PERFORM BDC_DYNPRO      USING 'SAPLMGMM' '0070'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'MSICHTAUSW-DYTXT(02)'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=ENTR'.
+    PERFORM BDC_FIELD       USING 'MSICHTAUSW-KZSEL(01)'
+                                  'X'.
+    PERFORM BDC_FIELD       USING 'MSICHTAUSW-KZSEL(02)'
+                                  'X'.
+    PERFORM BDC_DYNPRO      USING 'SAPLMGMM' '4004'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '/00'.
+    PERFORM BDC_FIELD       USING 'MAKT-MAKTX'
+                                  WA_MATCRE-MAKTX.
+    PERFORM BDC_FIELD       USING 'MARA-MEINS'
+                                  WA_MATCRE-MEINS.
+    PERFORM BDC_FIELD       USING 'MARA-MATKL'
+                                  WA_MATCRE-MATKL.
+    PERFORM BDC_FIELD       USING 'MARA-SPART'
+                                  WA_MATCRE-SPART.
+    PERFORM BDC_FIELD       USING 'MARA-MTPOS_MARA'
+                                  'NORM'.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'MARA-VOLEH'.
+    PERFORM BDC_FIELD       USING 'MARA-BRGEW'
+                                  WA_MATCRE-BRGEW.
+    PERFORM BDC_FIELD       USING 'MARA-GEWEI'
+                                  WA_MATCRE-GEWEI.
+    PERFORM BDC_FIELD       USING 'MARA-NTGEW'
+                                  WA_MATCRE-NTGEW.
+    PERFORM BDC_FIELD       USING 'MARA-VOLUM'
+                                  WA_MATCRE-VOLUM.
+    PERFORM BDC_FIELD       USING 'MARA-VOLEH'
+                                  WA_MATCRE-VOLEH.
+    PERFORM BDC_DYNPRO      USING 'SAPLMGMM' '4004'.
+    PERFORM BDC_FIELD       USING 'BDC_OKCODE'
+                                  '=BU'.
+    PERFORM BDC_FIELD       USING 'MAKT-MAKTX'
+                                  WA_MATCRE-MAKTX.
+    PERFORM BDC_FIELD       USING 'BDC_CURSOR'
+                                  'MARA-PACKCODE'.
+    PERFORM BDC_FIELD       USING 'MARA-PROFL'
+                                  WA_MATCRE-PROFL.
+    PERFORM BDC_FIELD       USING 'MARA-DG_PACK_STATUS'
+                                  WA_MATCRE-DG_ST.
+    PERFORM BDC_FIELD       USING 'MARA-PACKCODE'
+                                  WA_MATCRE-DG_PC.
+*  PERFORM BDC_TRANSACTION USING 'MM01'.
+    CALL TRANSACTION 'MM01' USING BDCDATA MODE 'N' MESSAGES INTO IT_MSG.
+
+    LOOP AT IT_MSG[] INTO WA_MSG WHERE MSGTYP = 'E' OR MSGTYP = 'S'.
+      CALL FUNCTION 'FORMAT_MESSAGE'
+        EXPORTING
+*         ID        = SY-MSGID
+*         LANG      = '-D'
+          NO        = WA_MSG-MSGNR
+          V1        = WA_MSG-MSGV1
+          V2        = WA_MSG-MSGV2
+          V3        = WA_MSG-MSGV3
+          V4        = WA_MSG-MSGV4
+        IMPORTING
+          MSG       = LV_MSG
+        EXCEPTIONS
+          NOT_FOUND = 1
+          OTHERS    = 2.
+      IF SY-SUBRC = 0.
+        W_ERROR-LINE_NO = LV_LINE.
+        W_ERROR-MESSAGE = LV_MSG.
+        APPEND W_ERROR TO I_ERROR.
+      ENDIF.
+
+      CLEAR: WA_MSG, W_ERROR.
+
+    ENDLOOP.
+
+    REFRESH: BDCDATA[], IT_MSG.
+    CLEAR: WA_MATCRE.
+
+  ENDLOOP.
+
+LOOP AT I_ERROR INTO W_ERROR.
+  WRITE:/ W_ERROR-LINE_NO, W_ERROR-MESSAGE.
+ENDLOOP.
+
+*----------------------------------------------------------------------*
+*        Start new screen                                              *
+*----------------------------------------------------------------------*
+FORM BDC_DYNPRO USING PROGRAM DYNPRO.
+  CLEAR BDCDATA.
+  BDCDATA-PROGRAM  = PROGRAM.
+  BDCDATA-DYNPRO   = DYNPRO.
+  BDCDATA-DYNBEGIN = 'X'.
+  APPEND BDCDATA.
+ENDFORM.
+
+*----------------------------------------------------------------------*
+*        Insert field                                                  *
+*----------------------------------------------------------------------*
+FORM BDC_FIELD USING FNAM FVAL.
+*  IF FVAL <> NODATA.
+  CLEAR BDCDATA.
+  BDCDATA-FNAM = FNAM.
+  BDCDATA-FVAL = FVAL.
+  SHIFT BDCDATA-FVAL LEFT DELETING LEADING SPACE.       "Delete the leading zeros from Field Value.
+  APPEND BDCDATA.
+*  ENDIF.
+ENDFORM.
+
+FORM I_DOWNLOAD.
+  DATA: BEGIN OF I_HEADING OCCURS 0,
+          COLUMN TYPE STRING,
+        END OF I_HEADING.
+
+  I_HEADING-COLUMN = 'Material Description'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'UOM'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Material group'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Division'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Gross weight'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Unit'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Net weight'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Volume'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Unit'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'DG ind profile'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'DG Pack status'.
+  APPEND I_HEADING.
+  I_HEADING-COLUMN = 'Packaging code'.
+  APPEND I_HEADING.
+
+  CALL FUNCTION 'GUI_DOWNLOAD'
+    EXPORTING
+*     BIN_FILESIZE            =
+      FILENAME                = 'MAT_CRE.xls'
+      FILETYPE                = 'ASC'
+*     APPEND                  = ' '
+      WRITE_FIELD_SEPARATOR   = 'X'
+*     HEADER                  = '00'
+*     TRUNC_TRAILING_BLANKS   = ' '
+*     WRITE_LF                = 'X'
+*     COL_SELECT              = ' '
+*     COL_SELECT_MASK         = ' '
+*     DAT_MODE                = ' '
+*     CONFIRM_OVERWRITE       = ' '
+*     NO_AUTH_CHECK           = ' '
+*     CODEPAGE                = ' '
+*     IGNORE_CERR             = ABAP_TRUE
+*     REPLACEMENT             = '#'
+*     WRITE_BOM               = ' '
+*     TRUNC_TRAILING_BLANKS_EOL       = 'X'
+*     WK1_N_FORMAT            = ' '
+*     WK1_N_SIZE              = ' '
+*     WK1_T_FORMAT            = ' '
+*     WK1_T_SIZE              = ' '
+*     WRITE_LF_AFTER_LAST_LINE        = ABAP_TRUE
+*     SHOW_TRANSFER_STATUS    = ABAP_TRUE
+      VIRUS_SCAN_PROFILE      = '/SCET/GUI_DOWNLOAD'
+* IMPORTING
+*     FILELENGTH              =
+    TABLES
+      DATA_TAB                = I_HEADING[]
+*     FIELDNAMES              =
+    EXCEPTIONS
+      FILE_WRITE_ERROR        = 1
+      NO_BATCH                = 2
+      GUI_REFUSE_FILETRANSFER = 3
+      INVALID_TYPE            = 4
+      NO_AUTHORITY            = 5
+      UNKNOWN_ERROR           = 6
+      HEADER_NOT_ALLOWED      = 7
+      SEPARATOR_NOT_ALLOWED   = 8
+      FILESIZE_NOT_ALLOWED    = 9
+      HEADER_TOO_LONG         = 10
+      DP_ERROR_CREATE         = 11
+      DP_ERROR_SEND           = 12
+      DP_ERROR_WRITE          = 13
+      UNKNOWN_DP_ERROR        = 14
+      ACCESS_DENIED           = 15
+      DP_OUT_OF_MEMORY        = 16
+      DISK_FULL               = 17
+      DP_TIMEOUT              = 18
+      FILE_NOT_FOUND          = 19
+      DATAPROVIDER_EXCEPTION  = 20
+      CONTROL_FLUSH_ERROR     = 21
+      OTHERS                  = 22.
+
+ENDFORM.
